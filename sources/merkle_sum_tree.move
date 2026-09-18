@@ -6,21 +6,21 @@ use sui::{hash, bcs};
 // Variable-arity Merkle Sum Tree
 
 #[error(code = 1)]
-const EOverflow: vector<u8> = b"u64 addition overflow";
+const EOverflow: vector<u8> = b"u128 addition overflow";
 
 public struct Node has drop, copy {
-    value: u64,
+    value: u128,
     dataHash: vector<u8>, // general data hash
 }
 
 public struct MultiNode has drop {
-    sum: u64,
+    sum: u128,
     accumulatedHash: vector<u8>,
     hashes: vector<vector<u8>>,
 }
 
 public struct Root has drop {
-    sum: u64,
+    sum: u128,
     hash: vector<u8>,
 }
 
@@ -60,7 +60,7 @@ public fun verify_proof(
     roots_are_same(result, root)
 }
 
-public fun new_node(value: u64, dataHash: vector<u8>): Node {
+public fun new_node(value: u128, dataHash: vector<u8>): Node {
     Node {
         value: value,
         dataHash: dataHash
@@ -78,7 +78,7 @@ public fun new_multinode(mut nodes: vector<Node>): MultiNode {
 
     while (!vector::is_empty(&nodes)) {
         let node = vector::pop_back(&mut nodes);
-        let mut checked = std::u64::checked_add(ret.sum, node.value);
+        let mut checked = std::u128::checked_add(ret.sum, node.value);
         assert!(option::is_some(&checked), EOverflow);
         ret.sum = option::extract(&mut checked);
 
