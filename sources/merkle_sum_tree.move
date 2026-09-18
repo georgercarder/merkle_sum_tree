@@ -5,9 +5,9 @@ use sui::{hash, bcs};
 
 // Variable-arity Merkle Sum Tree
 
-public struct Node has drop {
+public struct Node has drop, copy {
     value: u64,
-    hash: vector<u8>, // general data hash
+    dataHash: vector<u8>, // general data hash
 }
 
 public struct MultiNode has drop {
@@ -16,15 +16,44 @@ public struct MultiNode has drop {
     hashes: vector<vector<u8>>,
 }
 
-public struct Root {
+public struct Root has drop {
     sum: u64,
     hash: vector<u8>,
+}
+
+public struct Level has drop {
+    left_siblings: vector<Node>,
+    right_siblings: vector<Node>,
+}
+
+public fun verify_proof(
+    node: Node, 
+    mut levels: vector<Level>,
+    root: Root,
+): bool {
+    let Node { value, dataHash } = node;
+    let mut focus = Node { value, dataHash };
+    while (!vector::is_empty(&levels)) {
+        let level = vector::pop_back(&mut levels);
+
+        let mut nodes = vector::empty<Node>();
+        append_nodes(&mut nodes, &level.left_siblings);
+        append_node(&mut nodes, &focus);
+        append_nodes(&mut nodes, &level.right_siblings);
+
+        let multi_node = new_multinode(nodes);
+        focus = multi_node_as_node(multi_node);
+    };
+    let result = node_as_root(focus);
+    
+    vector::destroy_empty(levels);
+    roots_are_same(result, root)
 }
 
 public fun new_node(value: u64, dataHash: vector<u8>): Node {
     Node {
         value: value,
-        hash: dataHash
+        dataHash: dataHash
     }
 }
 
@@ -43,7 +72,7 @@ public fun new_multinode(mut nodes: vector<Node>): MultiNode {
 
         let mut message = vector::empty<u8>();
         vector::append(&mut message, bcs::to_bytes(&node.value));
-        vector::append(&mut message, node.hash);
+        vector::append(&mut message, node.dataHash);
         let nodeHash = hash::blake2b256(&message);
 
         let mut accumulatedMessage = vector::empty<u8>();
@@ -62,16 +91,34 @@ public fun multi_node_as_node(multi_node: MultiNode): Node {
     let MultiNode { sum: sum, accumulatedHash: accumulatedHash, hashes: _ } = multi_node;
     Node {
         value: sum,
-        hash: accumulatedHash,
+        dataHash: accumulatedHash,
     }
 }
 
 public fun node_as_root(node: Node): Root {
-    let Node { value: value, hash: hash } = node;
+    let Node { value: value, dataHash: dataHash } = node;
     Root {
         sum: value,
-        hash: hash,
+        hash: dataHash,
     }
+}
+
+public fun roots_are_same(a: Root, b: Root): bool {
+    (a.sum == b.sum) && (a.hash == b.hash)
+}
+
+public fun append_nodes(to: &mut vector<Node>, from: &vector<Node>) {
+    let length = vector::length(from);
+    let mut i = 0;
+    while (i < length) {
+        let n = vector::borrow(from, i);
+        vector::push_back(to, *n);
+        i = i + 1;
+    };
+}
+
+public fun append_node(nodes: &mut vector<Node>, node: &Node) {
+    vector::push_back(nodes, *node);
 }
 
 public fun copy_u8_vector(v: &vector<u8>): vector<u8> {
