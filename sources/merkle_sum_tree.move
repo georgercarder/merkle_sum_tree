@@ -5,6 +5,9 @@ use sui::{hash, bcs};
 
 // Variable-arity Merkle Sum Tree
 
+#[error(code = 1)]
+const EOverflow: vector<u8> = b"u64 addition overflow";
+
 public struct Node has drop, copy {
     value: u64,
     dataHash: vector<u8>, // general data hash
@@ -34,12 +37,12 @@ public fun verify_proof(
     let Node { value, dataHash } = node;
     let mut focus = Node { value, dataHash };
     while (!vector::is_empty(&levels)) {
-        let level = vector::pop_back(&mut levels);
+        let l = vector::pop_back(&mut levels);
 
         let mut nodes = vector::empty<Node>();
-        append_nodes(&mut nodes, &level.left_siblings);
+        append_nodes(&mut nodes, &l.left_siblings);
         append_node(&mut nodes, &focus);
-        append_nodes(&mut nodes, &level.right_siblings);
+        append_nodes(&mut nodes, &l.right_siblings);
 
         let multi_node = new_multinode(nodes);
         focus = multi_node_as_node(multi_node);
@@ -68,7 +71,9 @@ public fun new_multinode(mut nodes: vector<Node>): MultiNode {
 
     while (!vector::is_empty(&nodes)) {
         let node = vector::pop_back(&mut nodes);
-        ret.sum = ret.sum + node.value; // FIXME make checked
+        let mut checked = std::u64::checked_add(ret.sum, node.value);
+        assert!(option::is_some(&checked), EOverflow);
+        ret.sum = option::extract(&mut checked);
 
         let mut message = vector::empty<u8>();
         vector::append(&mut message, bcs::to_bytes(&node.value));
