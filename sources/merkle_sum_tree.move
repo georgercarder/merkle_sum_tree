@@ -24,6 +24,13 @@ public struct Root has drop {
     hash: vector<u8>,
 }
 
+// whether level nodes are ordered are up to the implementing client
+// but in practice, a client SHOULD order each level with respect to the `dataHash` parameter
+// otherwise reconstructing a Merkle Sum Tree matching their initial construction would 
+// not be well-defined. Ordering on the smart contract level is not enforced for the sake of 
+// efficiency, as a proof not following the order of a client's construction would simply 
+// not validate. The client team should be sure to enforce consistent ordering at each level.
+
 public struct Level has drop {
     left_siblings: vector<Node>,
     right_siblings: vector<Node>,
