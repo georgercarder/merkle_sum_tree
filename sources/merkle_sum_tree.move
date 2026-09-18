@@ -10,10 +10,23 @@ public struct Leaf has drop {
     dataHash: vector<u8>, // general data hash
 }
 
-public struct Node {
+public struct Node has drop {
     sum: u64,
     accumulatedHash: vector<u8>,
     hashes: vector<vector<u8>>,
+}
+
+public struct Root {
+    sum: u64,
+    hash: vector<u8>,
+}
+
+public fun node_as_root(node: Node): Root {
+    let Node { sum: sum, accumulatedHash: accumulatedHash, hashes: _ } = node;
+    Root {
+        sum: sum,
+        hash: accumulatedHash,
+    }
 }
 
 public fun hash_to_node(mut leaves: vector<Leaf>): Node {
